@@ -7,7 +7,66 @@ from math import sin, cos, exp, sqrt
 PI = 3.14159265359
 mode = 2.
 
-# Le second membre :
+
+def initSimpleWave(x):
+    y = np.zeros(2)
+
+    h = 1.0
+
+    if (x > 1) and (x < 1.4):
+      h = 1.0 + 1*exp(0.1/((x-1.)*(x-1.4)))
+    else:
+      h = 1.0
+
+    u = sqrt(g*h)
+
+
+    y[0] = h
+    y[1] = h * u
+    return y
+
+
+def dambreak(x):
+    y = np.zeros(2)
+
+    h = 1.0
+
+    if (x > 1) and (x < 3):
+      h = 2
+    else:
+      h = 1
+
+    u = 0.0
+
+
+    y[0] = h
+    y[1] = h * u
+    return y
+    
+#------------------------------------------------------
+
+def bathyPente(x):
+    return x/2.0
+    
+def testWellBalanced(x):
+    y = np.zeros(2)
+
+    eta = 2.0    
+    z = bathyPente(x)
+    if eta < z:
+        eta = z
+    h = eta - z
+
+    u = 0.0    
+    
+    y[0] = eta
+    y[1] = h*u
+    return y
+
+
+#------------------------------------------------------
+
+
 def initOndeEntro(x):
     y = np.zeros(3)
 

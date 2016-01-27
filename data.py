@@ -1,17 +1,20 @@
 """ Definition des parametres du probleme : """
 
-nvar = 3
+nvar = 2
+g = 9.8
 
 # Parametre temporels :
-tFinal = 0.002914094
-timeFunction = 'SSP2'
-cfl = 0.33
+tFinal = 0.000000000001
+timeFunction = 'SSP1'
+cfl = 0.5
 
 # Degre de l'EF :
-degre = 1
+degre = 0
+
+eps = 0.000001
 
 # Parametres du maillage :
 xDebut = 0.0
-xFin = 1.
-nCells = 100
+xFin = 4.
+nCells = 400
 deltax = (xFin - xDebut) / nCells

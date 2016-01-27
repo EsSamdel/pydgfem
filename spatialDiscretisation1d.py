@@ -7,7 +7,11 @@ from math import *
 from mesh import *
 from integration1d import *
 from referenceElement1d import *
-from flux import *
+from boundaryConditions import *
+
+from fluxEuler import *
+from fluxSW import *
+from fluxWBSW import *
 
 #---------------------------------------------------------
 
@@ -96,7 +100,7 @@ def GetUlocElement(u, icell, nvar, degre):
 
 def ProjectionSurEspaceEF(function, nvar, degre, Mesh):
     """ Calcul la projection de la fonction 'function' l'espace EF
-        d'degre 'degre' pour un maillage 1d :
+        de degre 'degre' pour un maillage 1d :
         Pj = int(f*phi[i]) = (b-a)*Sum(omega[k] * f(a + (b-a)x[i]) * phi[i])
     """
     nddltotal = NddlTotal(degre, Mesh)
@@ -183,7 +187,9 @@ def ContributionInterne(u, nvar, degre, Mesh):
                     uVal[-1] += Phi[iddl]*uLoc[(nddllocal*ivar)+iddl]
 
             # Calcul du flux :
-            fluxLoc = fluxEuler(uVal)
+            z = Mesh.getBathy(iCell, x[kint])
+#            print uVal[0], z, iCell, x[kint]
+            fluxLoc = fluxWBSW(uVal, z)
 
             # Calcul de l'adv local :
             for ivar in range(nvar):
@@ -204,33 +210,59 @@ def FluxDeBord(u, nvar, degre, Mesh):
     fluxBord = np.zeros(u.size)
 
     for k in range(Mesh.nArete):
+        
         eltL = Mesh.ElementsDesAretes[k,0]
+        leftCell = eltL
+        uLeft = np.zeros(nvar)
+        leftBound = False
         if eltL == -1: # bord
-            eltL = Mesh.ElementsDesAretes[-1,0] # <-- periodicite
+            eltL = Mesh.ElementsDesAretes[-1,0]
+            leftBound = True
+            leftCell = 0
+        
         x = 1.0
         Phi = FonctionBase(x, degre)
         uLoc = GetUlocElement(u, eltL, nvar, degre)
-        uLeft = np.zeros(nvar)
         for ivar in range(nvar):
             for iddl in range(nddllocal):
                 uLeft[ivar] += Phi[iddl]*uLoc[(nddllocal*ivar)+iddl]
 
         eltR = Mesh.ElementsDesAretes[k,1]
+        rightCell = eltR
+        uRight = np.zeros(nvar)        
+        rightBound = False
         if eltR == -1: # bord
             eltR = Mesh.ElementsDesAretes[0,1]
+            rightBound = True
+            rightCell = Mesh.ElementsDesAretes[k,0]
+
         x = 0.0
         Phi = FonctionBase(x, degre)
         uLoc = GetUlocElement(u, eltR, nvar, degre)
-        uRight = np.zeros(nvar)
         for ivar in range(nvar):
             for iddl in range(nddllocal):
                 uRight[ivar] += Phi[iddl]*uLoc[(nddllocal*ivar)+iddl]
 
 
-        # Flux numerique
-#        fluxLoc, lambdaMax = laxFriedrichs(uLeft, uRight)
-        fluxLoc, lambdaMax = roe(uLeft, uRight)
+        zL = Mesh.getBathy(leftCell, 1.0)
+        zR = Mesh.getBathy(rightCell, 0.0)
+        
+        if leftBound:                        
+#            uLeft = WBSWEwallBoundary(uRight, zL)
+            uLeft[0] = uRight[0]
+            uLeft[1] = -uRight[1]
+        if rightBound:
+#            uRight = WBSWEwallBoundary(uLeft, zR)
+            uRight[0] = uLeft[0]
+            uRight[1] = -uLeft[1]
 
+        # Flux numerique
+        fluxLoc, lambdaMax = laxFriedrichs(uLeft, uRight, zL, zR)
+#        if fluxLoc[0] or fluxLoc[1] != 0:
+#        print fluxLoc
+#        print k, zL, zR, uLeft, uRight, eltL, leftCell, eltR, rightCell
+#        print ''
+        
         # Placement de la valeur a gauche :
         if Mesh.ElementsDesAretes[k,0] != -1:
             iCell = Mesh.ElementsDesAretes[k,0]
@@ -257,56 +289,61 @@ def FluxDeBord(u, nvar, degre, Mesh):
 
 #---------------------------------------------------------
 
-def limiter(u, degre, Mesh):
-    """ Function limiter for TVD:
+def TermeSource(u, nvar, degre, Mesh):
+    """ Calcul de la contribution interne aux cellules du second membre
     """
+    nddllocal = NddlLocal(degre)
+    sourceTerme = np.zeros(u.size)
 
-    if degre >= 1:
-        uLimiter = np.zeros(u.size)
-        nddllocal = NddlLocal(degre)
+    for iCell in range(Mesh.nElement):
+        stLoc = np.zeros(nddllocal*nvar)
+        omega, x, nPoints = Quadrature1d(2*degre+3)
 
-        for k in range(Mesh.nElement):
+        uLoc = GetUlocElement(u, iCell, nvar, degre)
 
-            uLimiter[NumerotationGlobale(0, k, degre)] = u[NumerotationGlobale(0, k, degre)]
+        for kint in range(nPoints):
+            Phi = FonctionBase(x[kint], degre)
 
-            # Elements voisins :
-            voisinGauche = k-1
-            voisinDroite = k+1
-            if voisinGauche < 0:
-                voisinGauche = Mesh.nElement - 1
-            if voisinDroite > Mesh.nElement - 1:
-                voisinDroite = 0
+            # Reconstruction de la valeur de u :
+            uVal = []
+            for ivar in range(nvar):
+                uVal.append(0.)
+                for iddl in range(nddllocal):
+                    uVal[-1] += Phi[iddl]*uLoc[(nddllocal*ivar)+iddl]
 
-            uMoy = u[NumerotationGlobale(0, k, degre)]
-            uMoyGauche = u[NumerotationGlobale(0, voisinGauche, degre)]
-            uMoyDroite = u[NumerotationGlobale(0, voisinDroite, degre)]
+            # Calcul du flux :
+            slope = Mesh.getSlope(iCell)
+            fluxLoc = sourceTerm(uVal, slope)
 
-            deltaGauche = uMoy - uMoyGauche
-            deltaDroite = uMoyDroite - uMoy
-            u_1 = u[NumerotationGlobale(1, k, degre)]
+            # Calcul de l'adv local :
+            for ivar in range(nvar):
+                for iddl in range(nddllocal):
+                    stLoc[(ivar*nddllocal) + iddl] += omega[kint]*fluxLoc[ivar]*Phi[iddl]
+                    
+        sourceTerme[(nddllocal*nvar)*iCell: (nddllocal*nvar)*(iCell+1)] = stLoc
 
-            val = minmod(u_1, deltaGauche, deltaDroite)
-            uLimiter[NumerotationGlobale(1, k, degre)] = val
+    return sourceTerme
 
-    else:
-        uLimiter = u
 
-    #print('u ', u)
-    #print('limiter : ', uLimiter)
+#-----------------------------------------------------------------------------------
 
-    return uLimiter
+def assertPositivity(u, nvar, degre, Mesh):
+    
+    for iCell in range(Mesh.nElement):
+        omega, x, nPoints = Quadrature1d(2*degre+3)    
+        uLoc = GetUlocElement(u, iCell, nvar, degre)
 
-#---------------------------------------------------------
-
-def minmod(a, b, c):
-    """ Function minmod :
-    """
-
-    if a >= 0. and b >= 0. and c >= 0.:
-        val = min(a, b, c)
-    elif a <= 0. and b <= 0. and c <= 0.:
-        val = max(a, b, c)
-    else:
-        val = 0.
-
-    return val
+        zL = Mesh.getBathy(iCell, 0.)
+        zR = Mesh.getBathy(iCell, 1.)
+        zmax = max(zL, zR)
+    
+        for kint in range(nPoints):
+            Phi = FonctionBase(x[kint], degre)    
+            uVal = []
+            for ivar in range(nvar):
+                uVal.append(0.)
+                for iddl in range(nddllocal):
+                    uVal[-1] += Phi[iddl]*uLoc[(nddllocal*ivar)+iddl]
+                    
+            if (uVal[0]-zmax) < eps:
+                uVal[0] = zmax + eps

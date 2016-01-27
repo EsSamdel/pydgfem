@@ -7,7 +7,7 @@ Integration en temps explicite par les méthodes de Runge Kutta et SSP
 """
 
 # Import :
-import os
+import os, time
 path = os.path.abspath(os.path.curdir)
 
 import numpy as np
@@ -18,18 +18,61 @@ from spatialDiscretisation1d import *
 from timeScheme import *
 from output import *
 
+xDebut = 0.0
+xFin = 10
+nCells = 5
+dx = (xFin - xDebut) / nCells
+
+def funcBathy(x):
+    z = x/5.0
+    if x > 5.0:
+        z = 2.0 - x/5.0
+    return z
+
+#def funcBathy(x):
+#    z = 0.
+#    if x > 5.0:
+#        z = -1.0 + x/5.0
+#    if x > 10.0:
+#        z = 1.0 
+#    return z
+
+#def funcBathy(x):
+#    z = x/2.0
+#    if x > 4 and x < 6:
+#        z = 2.0 - x/2.0
+#    elif x >= 6 and x < 8:
+#        z = 1.0 + x/2.0
+#    elif x >= 8:
+#        z = 2.0 - x/2.0
+#    return z
+        
+def funcInit(x):
+    y = np.zeros(2)
+
+    eta = 0.9
+    if x < 1.0:
+        eta += 0.5*(1.0-x)
+
+    z = funcBathy(x)
+    if eta < z:
+        eta = z + eps
+    
+    y[0] = eta
+    y[1] = 0.0
+    return y 
+
 #------------------------------------------
 # :: CREATE MESH ::
 #------------------------------------------
 Mesh = UniformMeshWithBathy(xDebut, xFin, nCells)
-Mesh.initBathy(bathyPente)
-Mesh.plotBathy()
+Mesh.initBathy(funcBathy)
 x = Mesh.milieuxCellules()
 
 #------------------------------------------
 # :: INITIALISATION ::
 #------------------------------------------
-fInit = ProjectionSurEspaceEF(dambreak, nvar, degre, Mesh)
+fInit = ProjectionSurEspaceEF(funcInit, nvar, degre, Mesh)
 
 # Mass matrix :
 M = Masse(nvar, degre, Mesh)
@@ -38,10 +81,12 @@ Minv = np.linalg.inv(M)
 # Initial solution :
 U0 = np.linalg.solve(M, fInit)
 y0 = ValeursAuxCentres(U0, nvar, degre, Mesh)
-plot = GraphAnim(x, y0)
-#plot.addValues(y0)
-#plot.draw()
 
+Mesh.plotBathy()
+#plt.plot(x, y0[0])
+#plt.show()
+
+plot = GraphAnim(x, y0)
 #------------------------------------------
 # :: TIME LOOP ::
 #------------------------------------------
@@ -62,8 +107,11 @@ while t < tFinal:
     if not compt%2:
         ytmp = ValeursAuxCentres(Un, nvar, degre, Mesh)
         plot.update_line(ytmp)
+#        time.sleep(1)
 
     print('temps : ', t)
 
 yFinal = ValeursAuxCentres(Un, nvar, degre, Mesh)
 plot.update_line(yFinal)
+
+

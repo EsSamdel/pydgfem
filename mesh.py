@@ -4,22 +4,43 @@ from itertools import count
 import numpy as np
 import matplotlib.pyplot as plt
 
+from data import *
+
 
 class Elements:
+    """
+        Define finite elements (only for 1D)
+    """
     _ids = count(0)
     _all = []
     
-    def __init__(self, mesure, coord, faceList):
+    def __init__(self, mesure, coord, degree, faceList):
         self.id = self._ids.next()
         Elements._all.append(self)        
         self.mesure = mesure
         self.coord = coord
-        self.faces = faceList
-        
         self.center = (coord[0] + coord[1]) * 0.5
 
+        self.degree = 0
+        self.nddl = 0
+        self.setDegree(degree)
+        self.localPos = []
+        if self.id == 0:
+            self.localPos = [0, self.nddl]
+        else:
+            self.localPos = [Elements._all[self.id-1].localPos[1], Elements._all[self.id-1].localPos[1] + self.nddl]
+        
+        self.faces = faceList
+        
+    def setDegree(self, degree):
+        self.degree = degree
+        self.nddl = degree + 1   
+        
 
 class Faces:
+    """
+        Define faces of elements (only for 1D)
+    """
     _ids = count(0)
     _all = []    
     
@@ -27,7 +48,8 @@ class Faces:
         self.id = self._ids.next()
         Faces._all.append(self)
         self.color = color
-        self.elements = []
+        self.eltLeft = -1
+        self.eltRight = -1
         self.nodes = []
 
     def addElement(self, element):
@@ -38,13 +60,15 @@ class Faces:
 
 
 class Mesh:
+    """
+        Class to handle list of elements, faces, geometrical points, and their conectivity
+    """
     
     def __init__(self, xOri=0.0, xEnd=1.0, nCells=10):
         self.xStart = xOri
         self.xEnd = xEnd
         self.nElements = nCells
         self.cellSize = (xEnd-xOri) / float(nCells)
-
 
         # Maillage 1D
         for iFace in range(self.nElements + 1):
@@ -53,141 +77,93 @@ class Mesh:
         for iElt in range(self.nElements):
             faces = [Faces._all[iElt], Faces._all[iElt+1]]
             coord = [self.xStart + iElt * self.cellSize, self.xStart + (iElt+1) * self.cellSize]
-            Elements(self.cellSize, coord, faces)
-            for iFace in faces:
-                iFace.addElement(Elements._all[-1])
+            Elements(self.cellSize, coord, degree, faces)
+            
+            faces[0].eltRight = Elements._all[-1]
+            faces[1].eltLeft = Elements._all[-1]
 
+        # Definition des bords
         Faces._all[0].color = 1
         Faces._all[-1].color = 2
 
-#        for iElt in Elements._all:
-#            print iElt.center
+        self.elements = Elements._all
+        self.innerFaces = [iFace for iFace in Faces._all if iFace.color == 0]
+        self.boundaryFaces = [iFace for iFace in Faces._all if iFace.color != 0]
+        
+#        for iElt in self.elements:
+#            print iElt.localPos
+#        for iFace in self.innerFaces:
+#            print iFace.id, iFace.eltLeft, iFace.eltRight
+#        for iFace in self.boundaryFaces:
+#            print iFace.id, iFace.eltLeft, iFace.eltRight    
+    
+
+    def getNddlTot(self):
+        """
+            Give the total number of ddls 
+        """
+        nddlTot = 0
+        for iElt in Elements._all:
+            nddlTot += iElt.nddl
+        return nddlTot
 
 
+    def getNNodesTot(self):
+        """
+            Give the total number of nodes
+        """
+        nNodesTot = 0
+        for iElt in Elements._all:
+            nNodesTot += len(iElt.coord)
+        return nNodesTot
 
-class UniformMesh:
-
-    def __init__(self, xOri=0.0, xEnd=1.0, nCells=10):
-        self.xOrigine = xOri
-        self.xFin = xEnd
-        self.nCells = nCells
-        self.tailleCell = (xEnd-xOri) / float(nCells)
-
-        self.nNodes = self.nCells + 1
-        self.nArete = self.nCells + 1
-        self.nElement = self.nCells
-        self.nAreteBord = 2
-
-        self.Noeuds = np.zeros(self.nNodes)
-        for i in range(self.nNodes):
-            self.Noeuds[i] = self.xOrigine + i * self.tailleCell
-
-        self.Aretes = np.zeros(self.nArete)
-        for i in range(self.nArete):
-            self.Aretes[i] = i
-
-        self.Elements = np.zeros((self.nElement, 2))
-        for i in range(self.nElement):
-            self.Elements[i,0] = i
-            self.Elements[i,1] = i+1
-
-        self.ElementsDesAretes = np.zeros((self.nArete, 2))
-        self.ElementsDesAretes[0,0] = -1
-        self.ElementsDesAretes[0,1] = 0
-        for i in range(self.nArete - 2):
-            self.ElementsDesAretes[i+1,0] = i
-            self.ElementsDesAretes[i+1,1] = i+1
-
-        self.ElementsDesAretes[self.nArete-1,0] = self.nCells-1
-        self.ElementsDesAretes[self.nArete-1,1] = -1
-
-        self.AretesBord = np.zeros(2)
-        self.AretesBord[0] = 0
-        self.AretesBord[1] = self.nCells-1
-
-        self.CouleurAreteBord = np.zeros(self.nAreteBord)
-        self.CouleurAreteBord[0] = 100
-        self.CouleurAreteBord[1] = 200
-
-    def milieuxCellules(self):
-        nCellules = self.Noeuds.size - 1
-        x = np.zeros(nCellules)
-        for i in range(nCellules):
-            x[i] = 0.5 * (self.Noeuds[i] + self.Noeuds[i+1])
+        
+    def getCellCenter(self):
+        """
+            Give an array containing cell center position
+        """
+        x = np.zeros(self.nElements)
+        for iElt in range(self.nElements):
+            x[iElt] = Elements._all[iElt].center
         return x
 
-    def largeurElement(self, i):
-        try:
-            mes = abs( self.Noeuds[self.Elements[i,1]] - self.Noeuds[self.Elements[i,0]] )
-            return mes
-        except:
-            mes = 0.0
-            print('Maillage.largeurElement :: Element inconnu !!')
-            return mes
 
-#-----------------------------------------------------------------------------------
 
-class PeriodicMesh(UniformMesh):
+class MeshWithBathy(Mesh):
     """
-      Periodic mesh
+        Inherit from Mesh. Handle bathymetry data for shallow water problems
     """
-
-    def __init__(self, a=0.0, b=1.0, c=10):
-
-        UniformMesh.__init__(self, a, b, c)
-
-        # On retire les aretes de bord
-        self.nAreteBord = 0
-        self.AretesBord = []
-        self.CouleurAreteBord = []
-
-        # Enlever une arete
-        self.Aretes = self.Aretes[0:(self.nArete-1)]
-
-        # Les cellules ne changent pas
-
-        # On change ElementsDesAretes
-        self.ElementsDesAretes[0,0] = self.nElement-1
-        Temp = self.ElementsDesAretes[0:(self.nArete-1), :]
-        self.ElementsDesAretes = []
-        self.ElementsDesAretes = Temp
-
-        self.nArete = self.nArete-1
-
-
-#-----------------------------------------------------------------------------------
-
-class UniformMeshWithBathy(UniformMesh):
     
     def __init__(self, xOri=0.0, xEnd=1.0, nCells=10):
         
-        UniformMesh.__init__(self, xOri, xEnd, nCells)
+        Mesh.__init__(self, xOri, xEnd, nCells)
 
-        self.bathySize = self.nCells * 2
+        self.bathySize = 2*self.nElements
         self.bathyCoord = np.zeros(self.bathySize)        
         self.bathy = np.zeros(self.bathySize)
         
         
     def initBathy(self, func):
         """
-        func : func(x) give ground profile
+            init bathymetry data given an analytical function func(x)
         """ 
-        for i in range(self.nCells):
-            self.bathyCoord[2*i] = self.Noeuds[i]
-            self.bathyCoord[2*i+1] = self.Noeuds[i+1]
-            self.bathy[2*i] = func(self.Noeuds[i])
-            self.bathy[2*i + 1] = func(self.Noeuds[i+1])
+        # This way the bathy is only order 2
+        for i in range(self.nElements):
+            self.bathyCoord[2*i] = Elements._all[i].coord[0]
+            self.bathyCoord[2*i+1] = Elements._all[i].coord[1]
+            self.bathy[2*i] = func(self.bathyCoord[2*i])
+            self.bathy[2*i + 1] = func(self.bathyCoord[2*i+1])
+
+
+    def getSlope(self, iCell):
+        return self.bathy[2*iCell+1] - self.bathy[2*iCell]
+
+    
+    def getBathy(self, iCell, xCell):
+        slope = self.getSlope(iCell)
+        return self.bathy[2*iCell] + xCell*slope
 
         
     def plotBathy(self):
+        print self.bathyCoord
         plt.plot(self.bathyCoord, self.bathy)
-#        plt.show()
-        
-    
-    def getBathy(self, iCell, xCell):
-        slope = self.bathy[2*iCell+1] - self.bathy[2*iCell]
-        return self.bathy[2*iCell] + xCell*slope
-        
-        
-    def getSlope(self, iCell):
-        return self.bathy[2*iCell+1] - self.bathy[2*iCell]

@@ -6,11 +6,11 @@ from spatialDiscretisation1d import *
 
 #------------------------------------------------------------------
 
-def eulerExplicit(Un, Minv, degre, Mesh):
-    intCell = ContributionInterne(Un, nvar, degre, Mesh)
-    intBord, lambdaMax = FluxDeBord(Un, nvar, degre, Mesh)
-    sourceTerm = TermeSource(Un, nvar, degre, Mesh)
-    Dt = cfl * deltax/lambdaMax
+def eulerExplicit(Un, Minv, Mesh):
+    intCell = fluxGradPhiCellIntegrator(Un, nvar, Mesh)
+    intBord, lambdaMax = fluxPhiFaceIntegrator(Un, nvar, Mesh)
+    sourceTerm = APhiCellIntegrator(Un, nvar, Mesh)
+    Dt = cfl * Mesh.cellSize/lambdaMax
 
 #    print intCell
 #    print '---'
@@ -27,20 +27,20 @@ def eulerExplicit(Un, Minv, degre, Mesh):
 
 #------------------------------------------------------------------
 
-def RK2(Un, Minv, degre, Mesh):
+def RK2(Un, Minv, Mesh):
 
-    intCell = ContributionInterne(Un, nvar, degre, Mesh)
-    intBord, lambdaMax = FluxDeBord(Un, nvar, degre, Mesh)
-    sourceTerm = TermeSource(Un, nvar, degre, Mesh)
-    Dt = cfl * deltax/lambdaMax
+    intCell = fluxGradPhiCellIntegrator(Un, nvar, Mesh)
+    intBord, lambdaMax = fluxPhiFaceIntegrator(Un, nvar, Mesh)
+    sourceTerm = APhiCellIntegrator(Un, nvar, Mesh)
+    Dt = cfl * Mesh.cellSize/lambdaMax
 
     res = intCell - intBord + sourceTerm
     it = np.dot(Minv, res)
     Utild = Un + 0.5*Dt*it
 
-    intCell = ContributionInterne(Utild, nvar, degre, Mesh)
-    intBord, lambdaMax = FluxDeBord(Utild, nvar, degre, Mesh)
-    sourceTerm = TermeSource(Utild, nvar, degre, Mesh)
+    intCell = fluxGradPhiCellIntegrator(Utild, nvar, Mesh)
+    intBord, lambdaMax = fluxPhiFaceIntegrator(Utild, nvar, Mesh)
+    sourceTerm = APhiCellIntegrator(Utild, nvar, Mesh)
     res = intCell - intBord + sourceTerm
     it = np.dot(Minv, res)
 
@@ -51,27 +51,20 @@ def RK2(Un, Minv, degre, Mesh):
 
 #------------------------------------------------------------------
 
-def SSP2(Un, Minv, degre, Mesh):
+def SSP2(Un, Minv, Mesh):
 
-    intCell = ContributionInterne(Un, nvar, degre, Mesh)    
-    intBord, lambdaMax = FluxDeBord(Un, nvar, degre, Mesh)
-    sourceTerm = TermeSource(Un, nvar, degre, Mesh)
-    Dt = cfl * deltax/lambdaMax
-
-#    print intCell
-#    print '---'
-#    print intBord
-#    print '---'
-#    print sourceTerm
-#    print '---'
+    intCell = fluxGradPhiCellIntegrator(Un, nvar, Mesh)    
+    intBord, lambdaMax = fluxPhiFaceIntegrator(Un, nvar, Mesh)
+    sourceTerm = APhiCellIntegrator(Un, nvar, Mesh)
+    Dt = cfl * Mesh.cellSize/lambdaMax
 
     res = intCell - intBord + sourceTerm
     it = np.dot(Minv, res)
     U_1 = Un + Dt*it
 
-    intCell = ContributionInterne(U_1, nvar, degre, Mesh)
-    intBord, lambdaMax = FluxDeBord(U_1, nvar, degre, Mesh)
-    sourceTerm = TermeSource(U_1, nvar, degre, Mesh)
+    intCell = fluxGradPhiCellIntegrator(U_1, nvar, Mesh)
+    intBord, lambdaMax = fluxPhiFaceIntegrator(U_1, nvar, Mesh)
+    sourceTerm = APhiCellIntegrator(U_1, nvar, Mesh)
     res = intCell - intBord + sourceTerm
     it = np.dot(Minv, res)
 
@@ -81,24 +74,24 @@ def SSP2(Un, Minv, degre, Mesh):
 
 #------------------------------------------------------------------
 
-def SSP3(Un, Minv, degre, Mesh):
+def SSP3(Un, Minv, Mesh):
 
-    intCell = ContributionInterne(Un, nvar, degre, Mesh)
-    intBord, lambdaMax = FluxDeBord(Un, nvar, degre, Mesh)
-    Dt = cfl * deltax/lambdaMax
+    intCell = fluxGradPhiCellIntegrator(Un, nvar, Mesh)
+    intBord, lambdaMax = fluxPhiFaceIntegrator(Un, nvar, Mesh)
+    Dt = cfl * Mesh.cellSize/lambdaMax
 
     res = intCell - intBord
     it = np.dot(Minv, res)
     U_1 = Un + Dt*it
 
-    intCell = ContributionInterne(U_1, nvar, degre, Mesh)
-    intBord, lambdaMax = FluxDeBord(U_1, nvar, degre, Mesh)
+    intCell = fluxGradPhiCellIntegrator(U_1, nvar, Mesh)
+    intBord, lambdaMax = fluxPhiFaceIntegrator(U_1, nvar, Mesh)
     res = intCell - intBord
     it = np.dot(Minv, res)
     U_2 = 0.75*Un  +  0.25* (U_1 + Dt*it)
 
-    intCell = ContributionInterne(U_2, nvar, degre, Mesh)
-    intBord, lambdaMax = FluxDeBord(U_2, nvar, degre, Mesh)
+    intCell = fluxGradPhiCellIntegrator(U_2, nvar, Mesh)
+    intBord, lambdaMax = fluxPhiFaceIntegrator(U_2, nvar, Mesh)
     res = intCell - intBord
     it = np.dot(Minv, res)
 

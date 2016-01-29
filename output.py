@@ -7,7 +7,7 @@ class GraphAnim():
     def __init__(self, x, y):
         plt.ion()
         self.hl, = plt.plot(x, y[0])
-#        self.hl.axes.set_ylim([0,3])
+        self.hl.axes.set_ylim([-1,5])
 
     def update_line(self, y):
         self.hl.set_ydata(y[0])

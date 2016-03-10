@@ -25,15 +25,15 @@ x = mesh.getCellCenter()
 # ------------------------------------------
 # :: INITIALISATION ::
 # ------------------------------------------
-fInit = projectionOnFE(case.initialState, nvar, mesh)
+fInit = projectionOnFE(case.initialState, mesh)
 
 # Mass matrix :
-M = Masse(nvar, mesh)
+M = Masse(mesh)
 Minv = np.linalg.inv(M)
 
 # Initial solution :
 U0 = np.linalg.solve(M, fInit)
-y0 = averageValueOnCell(U0, nvar, mesh)
+y0 = averageValueOnCell(U0, mesh)
 
 mesh.plotBathy()
 plot = GraphAnim(x, y0)
@@ -57,7 +57,7 @@ while t < tFinal:
     t = t + Dt
 
     if not compt % 2:
-        ytmp = averageValueOnCell(Un, nvar, mesh)
+        ytmp = averageValueOnCell(Un, mesh)
         plot.update_line(ytmp)
     # time.sleep(1)
 

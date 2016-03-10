@@ -6,7 +6,7 @@ from integration1d import *
 from referenceElement1d import *
 
 
-def averageValueOnCell(u, nvar, mesh):
+def averageValueOnCell(u, mesh):
     """ u contient les valeurs aux degrés de liberté d'une fonction,
         projetée sur un espace EF de degre 'degree'. Cette fonction
         extrait les valeurs aux noeuds, par moyenne des valeurs a
@@ -14,7 +14,6 @@ def averageValueOnCell(u, nvar, mesh):
         k elts
         x[qk1, qk2 ...]
         :param u:
-        :param nvar:
         :param mesh:
     """
 
@@ -48,7 +47,7 @@ def averageValueOnCell(u, nvar, mesh):
     return val
 
 
-def maximumValueOnCell(uLoc, nvar, elt):
+def maximumValueOnCell(uLoc, elt):
     maxValues = np.zeros(nvar)
     maxValues -= 1000000
 
@@ -68,12 +67,11 @@ def maximumValueOnCell(uLoc, nvar, elt):
     return maxValues
 
 
-def projectionOnFE(function, nvar, mesh):
+def projectionOnFE(function, mesh):
     """ Calcul la projection de la fonction 'function' sur l'espace EF
         de degre 'degre' pour un maillage 1d :
         Pj = int(f*phi[i]) = (b-a)*Sum(omega[k] * f(a + (b-a)x[i]) * phi[i])
         :param function:
-        :param nvar:
         :param mesh:
     """
     nddltotal = mesh.getNddlTot()
@@ -102,12 +100,11 @@ def projectionOnFE(function, nvar, mesh):
     return integrale
 
 
-def Masse(nvar, mesh):
+def Masse(mesh):
     """ Calcul de la matrice de masse EF de degre 'degree' pour un maillage 1d :
         M = int(phi[i]*phi[j]) = (b-a)*Sum(omaga[k]*phi[i]*phi[j])
         U = {q1, q2}
         Ul = {q11, q12, q21, q22}
-        :param nvar:
         :param mesh:
     """
 
@@ -137,12 +134,11 @@ def Masse(nvar, mesh):
     return M
 
 
-def fluxGradPhiCellIntegrator(u, nvar, mesh):
+def fluxGradPhiCellIntegrator(u, mesh):
     """
         Compute cell integral : int_cell F . grad(Phi)
         matrix
         :param u:
-        :param nvar:
         :param mesh:
     """
 
@@ -182,12 +178,11 @@ def fluxGradPhiCellIntegrator(u, nvar, mesh):
     return integral
 
 
-def fluxPhiFaceIntegrator(u, nvar, mesh):
+def fluxPhiFaceIntegrator(u, mesh):
     """
         Calcul la matrice des flux aux aretes
         pour un maillage 1d :
         :param u:
-        :param nvar:
         :param mesh:
     """
 
@@ -296,12 +291,11 @@ def fluxPhiFaceIntegrator(u, nvar, mesh):
     return integral, lambdaMax
 
 
-def sourceTermPhiCellIntegrator(u, nvar, mesh):
+def sourceTermPhiCellIntegrator(u, mesh):
     """
         Compute cell integral : int_cell A . Phi
         matrix
         :param u:
-        :param nvar:
         :param mesh:
     """
 
@@ -338,15 +332,15 @@ def sourceTermPhiCellIntegrator(u, nvar, mesh):
     return integral
 
 
-def computeResidual(Un, nvar, mesh):
-    intCell = fluxGradPhiCellIntegrator(Un, nvar, mesh)
-    intBord, lambdaMax = fluxPhiFaceIntegrator(Un, nvar, mesh)
-    intSourceTerm = sourceTermPhiCellIntegrator(Un, nvar, mesh)
+def computeResidual(Un, mesh):
+    intCell = fluxGradPhiCellIntegrator(Un, mesh)
+    intBord, lambdaMax = fluxPhiFaceIntegrator(Un, mesh)
+    intSourceTerm = sourceTermPhiCellIntegrator(Un, mesh)
     residual = intCell - intBord + intSourceTerm
     return residual, lambdaMax
 
 
-def getValuesAtDDLs(uLoc, nvar, elt):
+def getValuesAtDDLs(uLoc, elt):
     degree = elt.degree
     nddlLoc = elt.nddl
     omega, x, nPoints = Quadrature1d(2 * degree + 3)

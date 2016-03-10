@@ -107,7 +107,6 @@ def Masse(nvar, mesh):
         M = int(phi[i]*phi[j]) = (b-a)*Sum(omaga[k]*phi[i]*phi[j])
         U = {q1, q2}
         Ul = {q11, q12, q21, q22}
-        :type mesh: object
         :param nvar:
         :param mesh:
     """
@@ -342,8 +341,8 @@ def sourceTermPhiCellIntegrator(u, nvar, mesh):
 def computeResidual(Un, nvar, mesh):
     intCell = fluxGradPhiCellIntegrator(Un, nvar, mesh)
     intBord, lambdaMax = fluxPhiFaceIntegrator(Un, nvar, mesh)
-    sourceTerm = sourceTermPhiCellIntegrator(Un, nvar, mesh)
-    residual = intCell - intBord + sourceTerm
+    intSourceTerm = sourceTermPhiCellIntegrator(Un, nvar, mesh)
+    residual = intCell - intBord + intSourceTerm
     return residual, lambdaMax
 
 

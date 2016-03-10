@@ -1,42 +1,33 @@
 # -*- coding: utf-8 -*-
 
-
-import numpy as np
-from math import *
-
-from mesh import *
-from integration1d import *
-from referenceElement1d import *
-from boundaryConditions import *
 from spatialDiscretisation1d import *
-
 
 
 def assertPositivity():
     pass
 
 
-
-#---------------------------------------------------------
-
-def limiter(u, degre, Mesh):
+def limiter(u, degre, mesh):
     """ Function limiter for TVD:
+    :param u:
+    :param degre:
+    :param mesh:
     """
 
     if degre >= 1:
         uLimiter = np.zeros(u.size)
-        nddllocal = NddlLocal(degre)
+        # nddllocal = NddlLocal(degre)
 
-        for k in range(Mesh.nElement):
+        for k in range(mesh.nElement):
 
             uLimiter[NumerotationGlobale(0, k, degre)] = u[NumerotationGlobale(0, k, degre)]
 
             # Elements voisins :
-            voisinGauche = k-1
-            voisinDroite = k+1
+            voisinGauche = k - 1
+            voisinDroite = k + 1
             if voisinGauche < 0:
-                voisinGauche = Mesh.nElement - 1
-            if voisinDroite > Mesh.nElement - 1:
+                voisinGauche = mesh.nElement - 1
+            if voisinDroite > mesh.nElement - 1:
                 voisinDroite = 0
 
             uMoy = u[NumerotationGlobale(0, k, degre)]
@@ -53,15 +44,17 @@ def limiter(u, degre, Mesh):
     else:
         uLimiter = u
 
-    #print('u ', u)
-    #print('limiter : ', uLimiter)
+    # print('u ', u)
+    # print('limiter : ', uLimiter)
 
     return uLimiter
 
-#---------------------------------------------------------
 
 def minmod(a, b, c):
     """ Function minmod :
+    :param a:
+    :param b:
+    :param c:
     """
 
     if a >= 0. and b >= 0. and c >= 0.:
